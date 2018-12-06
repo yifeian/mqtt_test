@@ -398,11 +398,11 @@ int MqttDecode_String(byte *buf, const char **pstr, word16 *pstr_len)
 	int len;
 	word16 str_len;
 	len  = MqttDecode_Num(buf, &str_len);
-	buf += len;
+	//buf += len;
 	if(pstr_len)
 		*pstr_len = str_len;
 	if(pstr)
-		*pstr = (char *)buf;
+		*pstr = (char *)(buf+len);
 	return len + str_len;
 }
 
@@ -411,6 +411,7 @@ int MqttDecode_Publish(byte *rx_buf, int rx_buf_len, MqttPublish *publish)
 	int header_len, remain_len ,vheader_len;
 	word16 topic_name_len;
 	byte *rx_payload;
+
 	MqttPacket *header = (MqttPacket *)rx_buf;
 
 	if(rx_buf == NULL || publish == NULL || rx_buf_len <= 0)
@@ -434,8 +435,10 @@ int MqttDecode_Publish(byte *rx_buf, int rx_buf_len, MqttPublish *publish)
 	}
 	/* decode payload */
 	publish->message_len = remain_len - vheader_len;
-	publish->message = rx_payload;
-
+	//publish->message = rx_payload;
+	uint8_t *message = malloc(publish->message_len+1);
+	memcpy(message, rx_payload, publish->message_len);
+	publish->message = &message[0];
 	/* null terminate decode values */
 	*(char *)(&publish->topic_name[topic_name_len]) = '\0';
 	*(char *)(&publish->message[publish->message_len]) = '\0';

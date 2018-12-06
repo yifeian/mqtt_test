@@ -20,18 +20,21 @@ static void setup_timeout(struct timeval *tv, int timeout_ms)
 	if(tv->tv_sec < 0 || (tv->tv_sec == 0 && tv->tv_usec <= 0))
 	{
 		tv->tv_sec = 0;
-		tv->tv_usec = 100;
+		tv->tv_usec = 0;
 	}
 }
 
-static void tcp_set_nonblocking(int *sockfd)
+static int  tcp_set_nonblocking(int *sockfd)
 {
+	int reg_flag;
 	int flags = fcntl(*sockfd, F_GETFL, 0);
+	reg_flag = flags;
 	if(flags < 0)
 		printf("fcntl get failed\n");
 	flags = fcntl(*sockfd, F_SETFL, flags|O_NONBLOCK);
 	if(flags < 0)
 		printf("fcntl set failed\n");
+	return reg_flag;
 }
 
 static int NetConnect(void *context, const char *host, uint16_t port,
@@ -42,6 +45,7 @@ static int NetConnect(void *context, const char *host, uint16_t port,
 	struct sockaddr_in address;
 	int rc;
 	int so_error = 0;
+	int sockflag;
 	struct addrinfo *result = NULL;
 	struct addrinfo hints;
 
@@ -81,6 +85,7 @@ static int NetConnect(void *context, const char *host, uint16_t port,
 	{
 		rc = -1;
 		sock->sock_fd = socket(address.sin_family,type, 0);
+		printf("sock fd is %d\n",sock->sock_fd );
 		if(sock->sock_fd != -1)
 		{
 			fd_set rset,wset;
@@ -90,7 +95,7 @@ static int NetConnect(void *context, const char *host, uint16_t port,
 			FD_SET(sock->sock_fd, &rset);
 			wset = rset;
 			/* set sock nonblock */
-			tcp_set_nonblocking(&sock->sock_fd);
+			sockflag = tcp_set_nonblocking(&sock->sock_fd);
 			/* start connect */
 			if((rc = connect(sock->sock_fd, (struct sockaddr *)&address, sizeof(address))) < 0)
 			{
@@ -124,7 +129,7 @@ static int NetConnect(void *context, const char *host, uint16_t port,
 				errno = rc;
 				return(-1);
 			}
-
+			fcntl(sock->sock_fd, F_SETFL, sockflag);
 			return (0);
 		}
 		else
@@ -188,13 +193,12 @@ static int NetRead(void *context, uint8_t *buf, int buf_len,
 		FD_SET(sock->sock_fd, &recvfds);
 		FD_SET(sock->sock_fd, &errfds);
 
-		rc = select(sock->sock_fd + 1, &recvfds,NULL,&errfds, &tv);
+		rc = select(sock->sock_fd + 1, &recvfds,NULL,&errfds, NULL);
 		if(rc > 0)
 		{
 			/* check if rx or error */
 			if(FD_ISSET(sock->sock_fd,&recvfds))
 			{
-again:
 				rc = (int)recv(sock->sock_fd, &buf[bytes], (size_t)(buf_len), 0);
 				if(rc <= 0)
 				{
@@ -203,7 +207,6 @@ again:
 				}
 				else
 				{
-					bytes += rc;
 					break;
 				}
 			}
@@ -213,25 +216,21 @@ again:
 				break;
 			}
 		}
-		else
-			break;/* timeout or signal;*/
-	}
-	if(rc < 0)
-	{
-		socklen_t len = sizeof(so_error);
-		getsockopt(sock->sock_fd, SOL_SOCKET,SO_ERROR, &so_error, &len);
-		if(so_error == 0 && !FD_ISSET(sock->sock_fd, &recvfds))
+		else if(rc < 0)
 		{
-			rc = 0;
-			goto again;
+			if(errno == EINTR)
+				continue;
+			else
+			{
+				printf("MQqttSocket Netread : error %d\n",errno);
+				break;
+			}
+
 		}
 		else
-			printf("MQqttSocket Netread : error %d\n",so_error);
+			break;
 	}
-	else
-	{
-		rc = bytes;
-	}
+
 	return rc;
 }
 

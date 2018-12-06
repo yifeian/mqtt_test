@@ -144,7 +144,7 @@ static int MqttClient_WaitType(MqttClient *client, int timeout_ms, byte wait_typ
 						return rc;
 					len = rc;
 					/* send packet */
-					rc = MqttPacket_Write(client, client->rx_buf, len);
+					rc = MqttPacket_Write(client, client->tx_buf, len);
 					if(rc != len)
 						return rc;
 				}

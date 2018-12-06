@@ -11,8 +11,8 @@
 #define DEFAULT_CMD_TIMEOUT_MS  5000
 #define DEFAULT_CON_TIMEOUT_MS  5000
 #define DEFAULT_MQTT_QOS        MQTT_QOS_0
-#define DEFAULT_KEEP_ALIVE_SEC  60
-#define DEFAULT_CLIENT_ID       "yifeifanMQTTClient"
+#define DEFAULT_KEEP_ALIVE_SEC  300
+#define DEFAULT_CLIENT_ID       "willyifeiMQTTClient"
 
 #define MAX_BUFFER_SIZE         1024
 #define TEST_MESSAGE            "test" /* NULL */
@@ -115,8 +115,9 @@ static int mqttclient_message_cb(MqttClient *client, MqttMessage *msg)
     (void)client; /* Supress un-used argument */
 
     /* Print incoming message */
-    printf("MQTT Message: Topic %s, Len %u\n, message: %s", msg->topic_name, msg->message_len,\
+    printf("MQTT Message: Topic %s, Len %u, message: %s\n", msg->topic_name, msg->message_len,\
     		msg->message);
+    free(msg->message);
 
     return MQTT_CODE_SUCCESS; /* Return negative to termine publish processing */
 }
@@ -290,7 +291,7 @@ void mqttclient_test(void *args)
 
 			/* Publish Topic*/
 			publish.retain = 0;
-			publish.qos = 1;
+			publish.qos = 0;
 			publish.dupicate = 0;
 			publish.topic_name = "subtopic_yifei1";
 			publish.packet_id = mqttclient_get_packetid();
@@ -303,7 +304,7 @@ void mqttclient_test(void *args)
 			/* readloop */
 			while(mStopRead == 0)
 			{
-				rc = MqttClient_WaitMessage(&client, DEFAULT_CMD_TIMEOUT_MS);
+				rc = MqttClient_WaitMessage(&client, 0);
 				if(rc != MQTT_CODE_SUCCESS && rc != MQTT_CODE_ERROR_TIMEOUT)
 				{
 					 printf("MQTT Message Wait: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
