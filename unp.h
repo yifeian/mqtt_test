@@ -55,7 +55,7 @@
 
 typedef	void	Sigfunc(int);
 Sigfunc *Signal(int, Sigfunc *);
-void sig_alrm(int signo);
+
 
 
 #endif /* UNP_H_ */

@@ -42,11 +42,6 @@ Signal(int signo, Sigfunc *func)	/* for our signal() function */
 	return(sigfunc);
 }
 
-extern int mStopRead;
 
-void sig_alrm(int signo)
-{
-	mStopRead = 1;
-	printf("function end\n");
-	return;
-}
+
+

@@ -131,19 +131,38 @@ static word16 mqttclient_get_packetid(void)
     return (word16)mPacketIdLast;
 }
 
+
+
+MqttClient client;
+
+static void sig_alrm(int signo)
+{
+	int rc;
+	rc = MqttClient_Ping(&client);
+	if(rc == MQTT_CODE_SUCCESS)
+	{
+		alarm(DEFAULT_KEEP_ALIVE_SEC);
+	}
+	printf("MQTT Ping: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
+}
+static void sig_hander(int signo)
+{
+	mStopRead = 1;
+	printf("Received SIGINT\n");
+}
 void mqttclient_test(void *args)
 {
 	int rc;
 	char ch;
 	word16 port = MQTT_DEFAULT_PORT;
 	const char *host = DEFAULT_MQTT_HOST;
-	MqttClient client;
+	//MqttClient client;
 	int use_tls = 0;
 	byte qos = DEFAULT_MQTT_QOS;
 	byte clean_session = 1;
 	word16 keep_alive_sec = DEFAULT_KEEP_ALIVE_SEC;
 	const char *client_id = DEFAULT_CLIENT_ID;
-	int enable_lwt = 0;
+	int enable_lwt = 1;
 	const char *username = NULL;
 	const char *password = NULL;
 	MqttNet net;
@@ -218,6 +237,7 @@ void mqttclient_test(void *args)
 
 	myoptind = 0; /* reset for test cases */
 	Signal(SIGALRM, sig_alrm);
+	Signal(SIGINT, sig_hander);
     printf("mqtt client test\n");
     rc = MqttClientNet_Init(&net);
     printf("MQTT Net Init: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
@@ -244,7 +264,7 @@ void mqttclient_test(void *args)
 		connect.enable_lwt = enable_lwt;
 		if (enable_lwt) {
 			lwt_msg.qos = qos;
-			lwt_msg.retain = 0;
+			lwt_msg.retain = 1;
 			lwt_msg.topic_name = "lwttopic";
 			lwt_msg.message = (byte*)DEFAULT_CLIENT_ID;
 			lwt_msg.message_len = (word16)strlen(DEFAULT_CLIENT_ID);
@@ -275,6 +295,10 @@ void mqttclient_test(void *args)
 				connect.ack.flags & MQTT_CONNECT_ACK_FLAG_SESSION_PRESENT ? 1 : 0);
 			/* send ping */
 			rc = MqttClient_Ping(&client);
+			if(rc == MQTT_CODE_SUCCESS)
+			{
+				alarm(DEFAULT_KEEP_ALIVE_SEC);
+			}
 			printf("MQTT Ping: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
 			/* subcribe topic */
 			subscribe.packet_id = mqttclient_get_packetid();
@@ -298,24 +322,37 @@ void mqttclient_test(void *args)
 			publish.message = (byte *)"this is a test yifei";
 			publish.message_len = (word16)strlen(publish.message);
 			rc = MqttClient_Publish(&client, &publish);
-			printf("MQTT Publish: Topic %s, %s (%d)\n", publish.topic_name,\
-					MqttClient_ReturnCodeToString(rc), rc);
-			alarm(20);
+			printf("MQTT Publish: Topic %s, %s (%d)\n", publish.topic_name, MqttClient_ReturnCodeToString(rc), rc);
 			/* readloop */
 			while(mStopRead == 0)
 			{
-				rc = MqttClient_WaitMessage(&client, 0);
+				rc = MqttClient_WaitMessage(&client, DEFAULT_CON_TIMEOUT_MS);
 				if(rc != MQTT_CODE_SUCCESS && rc != MQTT_CODE_ERROR_TIMEOUT)
 				{
 					 printf("MQTT Message Wait: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
 					 break;
 				}
 			}
-
+			/*unsubscribe  topics */
+			unsubscribe.packet_id = mqttclient_get_packetid();
+			unsubscribe.topic_count = 2;
+			unsubscribe.topics = topics;
+			rc = MqttClient_Unsubscribe(&client, &unsubscribe);
+			printf("MQTT Unsubscribe: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
 		}
+		rc = MqttClient_Disconnect(&client);
+		printf("MQTT Disconnect: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
     }
+    /* free resources */
+    if(tx_buf) free(tx_buf);
+    if(rx_buf) free(rx_buf);
 
+    rc = MqttClientNet_DeInit(&client);
+    printf("MQTT Net DeInit: %s (%d)\n", MqttClient_ReturnCodeToString(rc), rc);
+    ((func_args*)args)->return_code = 0;
 }
+
+
 
 int main(int argc, char **argv)
 {

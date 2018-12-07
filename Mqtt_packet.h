@@ -211,10 +211,10 @@ typedef struct _MqttSubscribeAck {
 
 /* unsubscribe response ack*/
 /* no response  payload(besides packet id) */
-typedef struct _MqttUnsubcribeAck
+typedef struct _MqttUnsubscribeAck
 {
 	uint16_t packet_id;
-}MqttUnsubcribeAck;
+}MqttUnsubscribeAck;
 
 /* mqtt packet application interface */
 struct _MqttClient;

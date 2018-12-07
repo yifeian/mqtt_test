@@ -150,7 +150,17 @@ static int MqttClient_WaitType(MqttClient *client, int timeout_ms, byte wait_typ
 				}
 				break;
 			}
-
+			case MQTT_PACKET_TYPE_UNSUBSCRIBE_ACK:
+			{
+				MqttUnsubscribeAck unsubscribe_ack, *p_unsubscribe_ack = &unsubscribe_ack;
+				if(p_decode)
+					p_unsubscribe_ack = p_decode;
+				rc = MqttDeocde_UnsubscribeAck(client->rx_buf, len, p_unsubscribe_ack);
+				if(rc <= 0)
+					return rc;
+				packet_id = p_unsubscribe_ack->packet_id;
+				break;
+			}
 			default:
 				printf("MqttClient_WaitMessage: Invalid client packet type %u!\n", msg_type);
 				return MQTT_CODE_ERROR_BAD_ARG;
@@ -291,6 +301,30 @@ int MqttClient_Subscribe(MqttClient *client, MqttSubscribe *subscribe)
 	return MQTT_CODE_SUCCESS;
 }
 
+int MqttClient_Unsubscribe(MqttClient *client, MqttUnsubscribe *Unsubscribe)
+{
+	int rc, len, i;
+	MqttUnsubscribeAck unsubscribe_ack;
+	if(client == NULL || Unsubscribe == NULL)
+	{
+		return MQTT_CODE_ERROR_BAD_ARG;
+	}
+
+	/* encode the unsubscribe packet */
+	rc = MqttEncode_Unsubscribe(client->tx_buf,client->tx_buf_len, Unsubscribe);
+	if(rc <= 0)
+		return rc;
+	len = rc;
+	rc = MqttPacket_Write(client, client->tx_buf, len);
+	if(rc != len)
+		return rc;
+	rc = MqttClient_WaitType(client, client->cmd_timeout_ms, MQTT_PACKET_TYPE_UNSUBSCRIBE_ACK,\
+			Unsubscribe->packet_id, &unsubscribe_ack);
+	if(rc < 0)
+		return rc;
+	return MQTT_CODE_SUCCESS;
+}
+
 int MqttClient_Publish(MqttClient *client, MqttPublish *publish)
 {
 	int rc, len;
@@ -315,6 +349,20 @@ int MqttClient_Publish(MqttClient *client, MqttPublish *publish)
 			return rc;
 	}
 	return MQTT_CODE_SUCCESS;
+}
 
-
+int MqttClient_Disconnect(MqttClient *client)
+{
+	int rc, len;
+	if(client == NULL)
+		return MQTT_CODE_ERROR_BAD_ARG;
+	rc = MqttEncode_Disconnect(client->rx_buf, client->tx_buf_len);
+	if(rc <= 0)
+		return rc;
+	len = rc;
+	rc = MqttPacket_Write(client, client->rx_buf, len);
+	if(rc != len)
+		return rc;
+	/* no response for mqtt disconnect packet */
+	return MQTT_CODE_SUCCESS;
 }

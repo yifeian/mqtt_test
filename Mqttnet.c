@@ -193,7 +193,7 @@ static int NetRead(void *context, uint8_t *buf, int buf_len,
 		FD_SET(sock->sock_fd, &recvfds);
 		FD_SET(sock->sock_fd, &errfds);
 
-		rc = select(sock->sock_fd + 1, &recvfds,NULL,&errfds, NULL);
+		rc = select(sock->sock_fd + 1, &recvfds,NULL,&errfds, &tv);
 		if(rc > 0)
 		{
 			/* check if rx or error */
