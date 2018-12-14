@@ -20,7 +20,13 @@
 #define MY_EX_USAGE 2 /* Exit reason code */
 /* Globals */
 int mStopRead = 0;
-const char* mTlsFile = NULL;
+
+/*  onenet info */
+#define ONENET_MQTT_HOST        "183.230.40.39"
+#define ONENET_CLIENT_ID        "23036025"
+#define ONENET_USERNAME         "112333"
+#define ONENET_PASSWORD         "ABC123RDA"
+#define ONNET_PORT               6002
 
 typedef struct _func_args
 {
@@ -154,24 +160,24 @@ void mqttclient_test(void *args)
 {
 	int rc;
 	char ch;
-	word16 port = MQTT_DEFAULT_PORT;
-	const char *host = DEFAULT_MQTT_HOST;
+	word16 port = ONNET_PORT;
+	const char *host = ONENET_MQTT_HOST;
 	//MqttClient client;
 	int use_tls = 0;
 	byte qos = DEFAULT_MQTT_QOS;
 	byte clean_session = 1;
 	word16 keep_alive_sec = DEFAULT_KEEP_ALIVE_SEC;
-	const char *client_id = DEFAULT_CLIENT_ID;
+	const char *client_id = ONENET_CLIENT_ID;
 	int enable_lwt = 1;
-	const char *username = NULL;
-	const char *password = NULL;
+	const char *username = ONENET_USERNAME;
+	const char *password = ONENET_PASSWORD;
 	MqttNet net;
 	byte *tx_buf = NULL, *rx_buf = NULL;
-/*
+
 	int argc = ((func_args *)args)->argc;
 	char **argv = ((func_args *)args)->argv;
 	((func_args*)args)->return_code = -1; /* error state */
-	/*
+
 	 while ((rc = mygetopt(argc, argv, "?h:p:tc:q:sk:i:lu:w:")) != -1) {
 	        ch = (char)rc;
 	        switch (ch) {
@@ -188,14 +194,6 @@ void mqttclient_test(void *args)
 	                if (port == 0) {
 	                    err_sys("Invalid Port Number!");
 	                }
-	                break;
-
-	            case 't':
-	                use_tls = 1;
-	                break;
-
-	            case 'c':
-	                mTlsFile = myoptarg;
 	                break;
 
 	            case 'q' :
@@ -357,6 +355,8 @@ void mqttclient_test(void *args)
 int main(int argc, char **argv)
 {
 	func_args args;
+	if(argc < 2)
+		err_sys("usage : -h for help");
 	args.argc = argc;
 	args.argv = argv;
 
